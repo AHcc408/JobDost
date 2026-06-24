@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Global Deny
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // ===============================================================
+    // Validation Blueprints
+    // ===============================================================
+
+    function isValidUser(data) {
+      return (data.keys().hasAll(['uid']) && data.uid == request.auth.uid) &&
+             (!('fullName' in data) || (data.fullName is string && data.fullName.size() <= 100)) &&
+             (!('careerGoals' in data) || (data.careerGoals is list && data.careerGoals.size() <= 20)) &&
+             (!('skills' in data) || (data.skills is list && data.skills.size() <= 50)) &&
+             (!('preferences' in data) || (data.preferences is list && data.preferences.size() <= 20)) &&
+             (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 10)) &&
+             (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    function isValidMessage(data) {
+      return data.role in ['user', 'model'] &&
+             data.text is string && data.text.size() <= 10000 &&
+             data.createdAt is string &&
+             (!('matches' in data) || (data.matches is list && data.matches.size() <= 10)) &&
+             (!('attachments' in data) || (data.attachments is list && data.attachments.size() <= 5));
+    }
+
+    function isValidMatch(data, userId) {
+      return (data.keys().hasAll(['uid', 'companyName', 'role']) && data.uid == userId) &&
+             data.companyName is string && data.companyName.size() <= 200 &&
+             data.role is string && data.role.size() <= 200 &&
+             (!('status' in data) || data.status in ['new', 'saved', 'dismissed']);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Identity isolation
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isVerified() && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isVerified() && isValidUser(incoming());
+
+      match /messages/{messageId} {
+        // Only the owner can list or get their messages
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isVerified() && isValidMessage(incoming());
+      }
+
+      match /matches/{matchId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isVerified() && isValidMatch(incoming(), userId);
+        allow update: if isOwner(userId) && isVerified() && isValidMatch(incoming(), userId) && (
+          // Allow updating status only
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        );
+        allow delete: if isOwner(userId) && isVerified();
+      }
+    }
+  }
+}

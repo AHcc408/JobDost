@@ -1,0 +1,5 @@
+{
+  "name": "JobDost: AI Job Hunter India",
+  "description": "An AI career scout that finds meaningful, life-changing job opportunities in India by understanding your true ambitions and boundaries.",
+  "requestFramePermissions": ["microphone"]
+}

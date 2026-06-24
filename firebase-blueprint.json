@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user career preferences and onboarding status.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "fullName": { "type": "string", "description": "User's full name" },
+        "careerGoals": { "type": "array", "items": { "type": "string" } },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "preferences": { "type": "array", "items": { "type": "string" } },
+        "attachments": { "type": "array", "items": { "type": "object" } },
+        "onboardingStep": { "type": "string", "description": "Current step in onboarding" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "A single message in the conversation history.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "text": { "type": "string" },
+        "attachments": { "type": "array", "items": { "type": "object" } },
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "company": { "type": "string" },
+              "role": { "type": "string" },
+              "location": { "type": "string" },
+              "salary": { "type": "string" },
+              "insight": { "type": "string" },
+              "link": { "type": "string" }
+            }
+          }
+        },
+        "grounding": { "type": "array", "items": { "type": "object" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "text", "createdAt"]
+    },
+    "JobMatch": {
+      "title": "Job Match",
+      "description": "Stores job opportunities found for the user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner UID" },
+        "companyName": { "type": "string" },
+        "role": { "type": "string" },
+        "salary": { "type": "string" },
+        "location": { "type": "string" },
+        "talInsight": { "type": "string", "description": "Tal's honest take on the role" },
+        "matchScore": { "type": "number" },
+        "status": { "type": "string", "enum": ["new", "saved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "companyName", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/users/{userId}/matches/{matchId}": {
+      "schema": "JobMatch",
+      "description": "Job matches for a specific user"
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat history for a specific user"
+    }
+  }
+}
